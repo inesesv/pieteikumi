@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pieteikšanās sarunām ar skolotājiem</title>
+  
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f7f6;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 650px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h2, h3 {
+      color: #333;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    select, input, textarea, button {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .admin-btn {
+      background-color: #007bff;
+      margin-top: 20px;
+    }
+    .admin-btn:hover {
+      background-color: #0069d9;
+    }
+    .delete-btn {
+      background-color: #dc3545;
+      margin-top: 15px;
+    }
+    .delete-btn:hover {
+      background-color: #c82333;
+    }
+    .message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .admin-section {
+      display: none;
+      margin-top: 25px;
+      padding-top: 20px;
+      border-top: 2px dashed #ccc;
+    }
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    .results-table th, .results-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+      font-size: 13px;
+    }
+    .results-table th {
+      background-color: #f2f2f2;
+      color: #333;
+    }
+    .no-data {
+      color: #777;
+      font-style: italic;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Pieteikšanās vecāku dienai</h2>
+  
+  <!-- Pieteikšanās forma -->
+  <form id="bookingForm">
+    <div class="form-group">
+      <label for="building">Izvēlieties ēku:</label>
+      <select id="building" required>
+        <option value="">-- Izvēlieties ēku --</option>
+        <option value="1">1. ēka</option>
+        <option value="2">2. ēka</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="teacher">Izvēlieties skolotāju:</label>
+      <select id="teacher" required disabled>
+        <option value="">-- Vispirms izvēlieties ēku --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="timeSlot">Izvēlieties laiku (15:00 - 18:00):</label>
+      <select id="timeSlot" required disabled>
+        <option value="">-- Vispirms izvēlieties skolotāju --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="studentClass">Skolēna klase:</label>
+      <input type="text" id="studentClass" placeholder="piem., 5.A" required>
+    </div>
+
+    <div class="form-group">
+      <label for="studentName">Skolēna Vārds Uzvārds:</label>
+      <input type="text" id="studentName" placeholder="Jānis Bērziņš" required>
+    </div>
+
+    <div class="form-group">
+      <label for="reason">Pieteikšanās iemesls:</label>
+      <textarea id="reason" rows="3" placeholder="Īsi aprakstiet sarunas tēmu..." required></textarea>
+    </div>
+
+    <button type="submit">Apstiprināt pieteikumu</button>
+  </form>
+
+  <div id="statusMessage" class="message success"></div>
+
+  <!-- Poga skolotāju saraksta skatīšanai -->
+  <button id="btnAdminAccess" class="admin-btn" type="button">Skatīties pieteikušos vecākus</button>
+
+  <!-- Administrēšanas sadaļa -->
+  <div id="adminSection" class="admin-section">
+    <h3>Skolotāja pieteikumu pārskats</h3>
+    <div class="form-group">
+      <label for="adminTeacherSelect">Izvēlieties skolotāju:</label>
+      <select id="adminTeacherSelect">
+        <option value="">-- Izvēlieties skolotāju --</option>
+      </select>
+    </div>
+
+    <!-- Šeit parādīsies pieteikumu saraksts -->
+    <div id="bookingListContainer"></div>
+
+    <!-- Poga visu datu dzēšanai -->
+    <button id="btnClearAllData" class="delete-btn" type="button">Dzēst visus datus</button>
+  </div>
+</div>
+
+<script>
+  // 1. SKOLOTĀJU UN LAIKA DATI
+  const teachersData = {
+    1: Array.from({ length: 30 }, (_, i) => `1. ēkas Skolotājs ${i + 1}`),
+    2: Array.from({ length: 120 }, (_, i) => `2. ēkas Skolotājs ${i + 1}`)
+  };
+
+  const allTeachers = [...teachersData[1], ...teachersData[2]];
+
+  function generateTimeSlots() {
+    const slots = [];
+    let start = 15 * 60;
+    const end = 18 * 60;
+    while (start < end) {
+      const hours = Math.floor(start / 60);
+      const minutes = start % 60;
+      slots.push(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+      start += 15;
+    }
+    return slots;
+  }
+  const allTimeSlots = generateTimeSlots();
+
+  // Elementi
+  const buildingSelect = document.getElementById('building');
+  const teacherSelect = document.getElementById('teacher');
+  const timeSlotSelect = document.getElementById('timeSlot');
+  const bookingForm = document.getElementById('bookingForm');
+  const statusMessage = document.getElementById('statusMessage');
+  
+  const btnAdminAccess = document.getElementById('btnAdminAccess');
+  const adminSection = document.getElementById('adminSection');
+  const adminTeacherSelect = document.getElementById('adminTeacherSelect');
+  const bookingListContainer = document.getElementById('bookingListContainer');
+  const btnClearAllData = document.getElementById('btnClearAllData');
+
+  function getBookings() {
+    return JSON.parse(localStorage.getItem('teacherBookings')) || [];
+  }
+
+  function saveBooking(booking) {
+    const bookings = getBookings();
+    bookings.push(booking);
+    localStorage.setItem('teacherBookings', JSON.stringify(bookings));
+  }
+
+  // Aizpildām skolotāju sarakstu administratora sadaļā
+  allTeachers.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t;
+    adminTeacherSelect.appendChild(opt);
+  });
+
+  // Logika: Izvēloties ēku
+  buildingSelect.addEventListener('change', function() {
+    const buildingId = this.value;
+    teacherSelect.innerHTML = '<option value="">-- Izvēlieties skolotāju --</option>';
+    timeSlotSelect.innerHTML = '<option value="">-- Vispirms izvēlieties skolotāju --</option>';
+    timeSlotSelect.disabled = true;
+
+    if (buildingId) {
+      teachersData[buildingId].forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher;
+        option.textContent = teacher;
+        teacherSelect.appendChild(option);
+      });
+      teacherSelect.disabled = false;
+    } else {
+      teacherSelect.disabled = true;
+    }
+  });
+
+  // Logika: Izvēloties skolotāju pieteikuma formā
+  teacherSelect.addEventListener('change', function() {
+    const selectedTeacher = this.value;
+    timeSlotSelect.innerHTML = '<option value="">-- Izvēlieties laiku --</option>';
+
+    if (selectedTeacher) {
+      const bookings = getBookings();
+      const takenSlots = bookings
+        .filter(b => b.teacher === selectedTeacher)
+        .map(b => b.time);
+
+      const freeSlots = allTimeSlots.filter(time => !takenSlots.includes(time));
+
+      if (freeSlots.length === 0) {
+        timeSlotSelect.innerHTML = '<option value="">-- Visi laiki aizņemti --</option>';
+        timeSlotSelect.disabled = true;
+      } else {
+        freeSlots.forEach(time => {
+          const option = document.createElement('option');
+          option.value = time;
+          option.textContent = time;
+          timeSlotSelect.appendChild(option);
+        });
+        timeSlotSelect.disabled = false;
+      }
+    } else {
+      timeSlotSelect.disabled = true;
+    }
+  });
+
+  // Logika: Pieteikuma saglabāšana
+  bookingForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const newBooking = {
+      building: buildingSelect.value,
+      teacher: teacherSelect.value,
+      time: timeSlotSelect.value,
+      studentClass: document.getElementById('studentClass').value,
+      studentName: document.getElementById('studentName').value,
+      reason: document.getElementById('reason').value,
+      createdAt: new Date().toLocaleString()
+    };
+
+    saveBooking(newBooking);
+
+    statusMessage.textContent = `Pieteikums veiksmīgi saglabāts! Laiks: ${newBooking.time} pie ${newBooking.teacher}.`;
+    statusMessage.style.display = 'block';
+
+    bookingForm.reset();
+    teacherSelect.disabled = true;
+    timeSlotSelect.disabled = true;
+
+    setTimeout(() => {
+      statusMessage.style.display = 'none';
+    }, 5000);
+  });
+
+  // 2. PAROLES PĀRBAUDE
+  btnAdminAccess.addEventListener('click', function() {
+    const password = prompt("Lūdzu, ievadiet paroli:");
+    if (password === "Skatīt") {
+      adminSection.style.display = 'block';
+      alert("Piekļuve piešķirta!");
+    } else if (password !== null) {
+      alert("Nepareiza parole!");
+    }
+  });
+
+  // 3. PIETEIKUMU RĀDĪŠANA LAPAS APAKŠĀ
+  adminTeacherSelect.addEventListener('change', function() {
+    const selectedTeacher = this.value;
+    bookingListContainer.innerHTML = '';
+
+    if (!selectedTeacher) return;
+
+    const bookings = getBookings();
+    const teacherBookings = bookings
+      .filter(b => b.teacher === selectedTeacher)
+      .sort((a, b) => a.time.localeCompare(b.time));
+
+    if (teacherBookings.length === 0) {
+      bookingListContainer.innerHTML = '<p class="no-data">Šim skolotājam pašlaik nav neviena pieteikuma.</p>';
+      return;
+    }
+
+    let tableHTML = `
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th>Laiks</th>
+            <th>Klase</th>
+            <th>Skolēns</th>
+            <th>Iemesls</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    teacherBookings.forEach(b => {
+      tableHTML += `
+        <tr>
+          <td><strong>${b.time}</strong></td>
+          <td>${b.studentClass}</td>
+          <td>${b.studentName}</td>
+          <td>${b.reason}</td>
+        </tr>
+      `;
+    });
+
+    tableHTML += '</tbody></table>';
+    bookingListContainer.innerHTML = tableHTML;
+  });
+
+  // 4. DATU DZĒŠANAS LOGIKA
+  btnClearAllData.addEventListener('click', function() {
+    const confirmation = confirm("Vai tiešām vēlaties dzēst visus pieteikumu datus? Šo darbību nevar atcelt!");
+    if (confirmation) {
+      localStorage.removeItem('teacherBookings');
+      bookingListContainer.innerHTML = '';
+      adminTeacherSelect.value = '';
+      alert("Visi dati veiksmīgi izdzēsti!");
+    }
+  });
+
+  // 5. KODA SKATĪŠANAS UN KOPĒŠANAS AIZSARDZĪBA
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (
+      e.key === "F12" ||
+      (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j")) ||
+      (e.ctrlKey && (e.key === "U" || e.key === "u"))
+    ) {
+      e.preventDefault();
+    }
+  });
+</script>
+
+</body>
+</html>
