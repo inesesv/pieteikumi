@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pieteikšanās sarunām ar skolotājiem 2026. gada 15. oktobrī</title>
+  <title>Pieteikšanās sarunām ar skolotājiem</title>
   
   <style>
     body {
       font-family: Arial, sans-serif;
-      /* Fona attēla iestatījumi */
+      /* Fona attēls */
       background-image: url('fons2.jpg');
       background-size: cover;
       background-position: center;
@@ -17,9 +17,55 @@
       margin: 0;
       padding: 20px;
     }
+
+    /* Kreisais augšējais stūris: Logo un papildu teksti */
+    .top-left-header {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      z-index: 100;
+    }
+
+    /* Logo kā poga vecāku skatīšanai */
+    .logo-btn {
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+      transition: transform 0.2s ease;
+    }
+    .logo-btn:hover {
+      transform: scale(1.05);
+    }
+    .logo-btn img {
+      max-width: 180px;
+      height: auto;
+      display: block;
+    }
+
+    /* Administratora teksts zem logo */
+    .admin-text-btn {
+      color: #ffffff;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-top: 15px;
+      cursor: pointer;
+      user-select: none;
+      opacity: 0.9;
+      transition: opacity 0.2s ease;
+    }
+    .admin-text-btn:hover {
+      opacity: 1;
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    }
+
+    /* Galvenais formas ietvars */
     .container {
       max-width: 650px;
-      margin: 0 auto;
+      margin: 40px auto 0 auto;
       background: rgba(255, 255, 255, 0.95);
       padding: 25px;
       border-radius: 8px;
@@ -46,7 +92,7 @@
       box-sizing: border-box;
       font-size: 14px;
     }
-    button {
+    button.submit-btn {
       background-color: #28a745;
       color: white;
       border: none;
@@ -54,20 +100,17 @@
       cursor: pointer;
       margin-top: 10px;
     }
-    button:hover {
+    button.submit-btn:hover {
       background-color: #218838;
-    }
-    .admin-btn {
-      background-color: #007bff;
-      margin-top: 15px;
-    }
-    .admin-btn:hover {
-      background-color: #0069d9;
     }
     .delete-btn {
       background-color: #dc3545;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
       margin-top: 15px;
-      display: none; /* Paslēpts pēc noklusējuma */
+      display: none;
     }
     .delete-btn:hover {
       background-color: #c82333;
@@ -112,6 +155,22 @@
 </head>
 <body>
 
+<!-- Ekrāna augšējais kreisais stūris -->
+<div class="top-left-header">
+  <!-- Logo kā poga (parole: "Skatīt") -->
+  <button id="btnLogoAccess" class="logo-btn" type="button" title="Skatīties pieteikušos vecākus">
+    <img src="zinatkare_balts.png" alt="Zinātkāre, kas iedvesmo! Liepājas Raiņa vidusskola">
+  </button>
+
+  <!-- Teksts zem logo kā poga (parole: "admin") -->
+  <div id="btnAdminTextAccess" class="admin-text-btn" title="Administratora režīms">
+    ~prāta atvērtība~<br>
+    ~zinātkāre~<br>
+    ~cieņa~<br>
+    ~līdzatbildība~
+  </div>
+</div>
+
 <div class="container">
   <h2>Pieteikšanās vecāku dienai</h2>
   
@@ -155,16 +214,12 @@
       <textarea id="reason" rows="3" placeholder="Īsi aprakstiet sarunas tēmu..." required></textarea>
     </div>
 
-    <button type="submit">Apstiprināt pieteikumu</button>
+    <button type="submit" class="submit-btn">Apstiprināt pieteikumu</button>
   </form>
 
   <div id="statusMessage" class="message success"></div>
 
-  <!-- Pogas skatīšanai un admina piekļuvei -->
-  <button id="btnAdminAccess" class="admin-btn" type="button">Skatīties pieteikušos vecākus</button>
-  <button id="btnFullAdminAccess" class="admin-btn" style="background-color: #6c757d;" type="button">Administratora režīms</button>
-
-  <!-- Administrēšanas sadaļa -->
+  <!-- Administrēšanas / Skatīšanās sadaļa -->
   <div id="adminSection" class="admin-section">
     <h3>Skolotāja pieteikumu pārskats</h3>
     <div class="form-group">
@@ -182,7 +237,7 @@
 </div>
 
 <script>
-  // Vārdu un uzvārdu paraugi
+  // 1. SKOLOTĀJU DATI
   const firstNames = ["Jānis", "Pēteris", "Andris", "Māris", "Kārlis", "Juris", "Ilze", "Inese", "Dace", "Anna", "Kristīne", "Laura"];
   const lastNames = ["Bērziņš", "Kalniņš", "Ozols", "Zariņš", "Liepiņš", "Kļaviņš", "Eglītis", "Pētersons", "Balodis"];
 
@@ -217,14 +272,15 @@
   }
   const allTimeSlots = generateTimeSlots();
 
+  // Elementu atsauces
   const buildingSelect = document.getElementById('building');
   const teacherSelect = document.getElementById('teacher');
   const timeSlotSelect = document.getElementById('timeSlot');
   const bookingForm = document.getElementById('bookingForm');
   const statusMessage = document.getElementById('statusMessage');
   
-  const btnAdminAccess = document.getElementById('btnAdminAccess');
-  const btnFullAdminAccess = document.getElementById('btnFullAdminAccess');
+  const btnLogoAccess = document.getElementById('btnLogoAccess');
+  const btnAdminTextAccess = document.getElementById('btnAdminTextAccess');
   const adminSection = document.getElementById('adminSection');
   const adminTeacherSelect = document.getElementById('adminTeacherSelect');
   const bookingListContainer = document.getElementById('bookingListContainer');
@@ -322,8 +378,8 @@
     }, 5000);
   });
 
-  // Skatīšanās piekļuve ("Skatīt")
-  btnAdminAccess.addEventListener('click', function() {
+  // 2. KLIKŠĶIS UZ LOGO -> Skatīšanās režīms (Parole: "Skatīt")
+  btnLogoAccess.addEventListener('click', function() {
     const password = prompt("Lūdzu, ievadiet paroli skatīšanai:");
     if (password === "Skatīt") {
       adminSection.style.display = 'block';
@@ -334,8 +390,8 @@
     }
   });
 
-  // Pilna admina piekļuve ("admin")
-  btnFullAdminAccess.addEventListener('click', function() {
+  // 3. KLIKŠĶIS UZ TEKSTA -> Administratora režīms (Parole: "admin")
+  btnAdminTextAccess.addEventListener('click', function() {
     const password = prompt("Lūdzu, ievadiet administratora paroli:");
     if (password === "admin") {
       adminSection.style.display = 'block';
