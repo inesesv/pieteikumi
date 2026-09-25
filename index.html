@@ -8,17 +8,22 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f4f7f6;
+      /* Fona attēla iestatījumi */
+      background-image: url('fons2.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
       margin: 0;
       padding: 20px;
     }
     .container {
       max-width: 650px;
       margin: 0 auto;
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.95);
       padding: 25px;
       border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
     h2, h3 {
       color: #333;
@@ -54,7 +59,7 @@
     }
     .admin-btn {
       background-color: #007bff;
-      margin-top: 20px;
+      margin-top: 15px;
     }
     .admin-btn:hover {
       background-color: #0069d9;
@@ -62,6 +67,7 @@
     .delete-btn {
       background-color: #dc3545;
       margin-top: 15px;
+      display: none; /* Paslēpts pēc noklusējuma */
     }
     .delete-btn:hover {
       background-color: #c82333;
@@ -154,8 +160,9 @@
 
   <div id="statusMessage" class="message success"></div>
 
-  <!-- Poga skolotāju saraksta skatīšanai -->
+  <!-- Pogas skatīšanai un admina piekļuvei -->
   <button id="btnAdminAccess" class="admin-btn" type="button">Skatīties pieteikušos vecākus</button>
+  <button id="btnFullAdminAccess" class="admin-btn" style="background-color: #6c757d;" type="button">Administratora režīms</button>
 
   <!-- Administrēšanas sadaļa -->
   <div id="adminSection" class="admin-section">
@@ -167,22 +174,34 @@
       </select>
     </div>
 
-    <!-- Šeit parādīsies pieteikumu saraksts -->
     <div id="bookingListContainer"></div>
 
-    <!-- Poga visu datu dzēšanai -->
+    <!-- Dzēšanas poga -->
     <button id="btnClearAllData" class="delete-btn" type="button">Dzēst visus datus</button>
   </div>
 </div>
 
 <script>
-  // 1. SKOLOTĀJU UN LAIKA DATI
+  // Vārdu un uzvārdu paraugi
+  const firstNames = ["Jānis", "Pēteris", "Andris", "Māris", "Kārlis", "Juris", "Ilze", "Inese", "Dace", "Anna", "Kristīne", "Laura"];
+  const lastNames = ["Bērziņš", "Kalniņš", "Ozols", "Zariņš", "Liepiņš", "Kļaviņš", "Eglītis", "Pētersons", "Balodis"];
+
+  function generateNames(count, prefix) {
+    const list = [];
+    for (let i = 0; i < count; i++) {
+      const fn = firstNames[i % firstNames.length];
+      const ln = lastNames[Math.floor(i / firstNames.length) % lastNames.length];
+      list.push(`${fn} ${ln} (${prefix})`);
+    }
+    return list.sort((a, b) => a.localeCompare(b, 'lv'));
+  }
+
   const teachersData = {
-    1: Array.from({ length: 30 }, (_, i) => `1. ēkas Skolotājs ${i + 1}`),
-    2: Array.from({ length: 120 }, (_, i) => `2. ēkas Skolotājs ${i + 1}`)
+    1: generateNames(30, "1. ēka"),
+    2: generateNames(120, "2. ēka")
   };
 
-  const allTeachers = [...teachersData[1], ...teachersData[2]];
+  const allTeachers = [...teachersData[1], ...teachersData[2]].sort((a, b) => a.localeCompare(b, 'lv'));
 
   function generateTimeSlots() {
     const slots = [];
@@ -198,7 +217,6 @@
   }
   const allTimeSlots = generateTimeSlots();
 
-  // Elementi
   const buildingSelect = document.getElementById('building');
   const teacherSelect = document.getElementById('teacher');
   const timeSlotSelect = document.getElementById('timeSlot');
@@ -206,6 +224,7 @@
   const statusMessage = document.getElementById('statusMessage');
   
   const btnAdminAccess = document.getElementById('btnAdminAccess');
+  const btnFullAdminAccess = document.getElementById('btnFullAdminAccess');
   const adminSection = document.getElementById('adminSection');
   const adminTeacherSelect = document.getElementById('adminTeacherSelect');
   const bookingListContainer = document.getElementById('bookingListContainer');
@@ -221,7 +240,6 @@
     localStorage.setItem('teacherBookings', JSON.stringify(bookings));
   }
 
-  // Aizpildām skolotāju sarakstu administratora sadaļā
   allTeachers.forEach(t => {
     const opt = document.createElement('option');
     opt.value = t;
@@ -229,7 +247,6 @@
     adminTeacherSelect.appendChild(opt);
   });
 
-  // Logika: Izvēloties ēku
   buildingSelect.addEventListener('change', function() {
     const buildingId = this.value;
     teacherSelect.innerHTML = '<option value="">-- Izvēlieties skolotāju --</option>';
@@ -249,7 +266,6 @@
     }
   });
 
-  // Logika: Izvēloties skolotāju pieteikuma formā
   teacherSelect.addEventListener('change', function() {
     const selectedTeacher = this.value;
     timeSlotSelect.innerHTML = '<option value="">-- Izvēlieties laiku --</option>';
@@ -279,7 +295,6 @@
     }
   });
 
-  // Logika: Pieteikuma saglabāšana
   bookingForm.addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -307,18 +322,30 @@
     }, 5000);
   });
 
-  // 2. PAROLES PĀRBAUDE
+  // Skatīšanās piekļuve ("Skatīt")
   btnAdminAccess.addEventListener('click', function() {
-    const password = prompt("Lūdzu, ievadiet paroli:");
+    const password = prompt("Lūdzu, ievadiet paroli skatīšanai:");
     if (password === "Skatīt") {
       adminSection.style.display = 'block';
-      alert("Piekļuve piešķirta!");
+      btnClearAllData.style.display = 'none';
+      alert("Piekļuve piešķirta (tikai skatīšanās režīms)!");
     } else if (password !== null) {
       alert("Nepareiza parole!");
     }
   });
 
-  // 3. PIETEIKUMU RĀDĪŠANA LAPAS APAKŠĀ
+  // Pilna admina piekļuve ("admin")
+  btnFullAdminAccess.addEventListener('click', function() {
+    const password = prompt("Lūdzu, ievadiet administratora paroli:");
+    if (password === "admin") {
+      adminSection.style.display = 'block';
+      btnClearAllData.style.display = 'block';
+      alert("Piekļuve piešķirta (administratora režīms)!");
+    } else if (password !== null) {
+      alert("Nepareiza parole!");
+    }
+  });
+
   adminTeacherSelect.addEventListener('change', function() {
     const selectedTeacher = this.value;
     bookingListContainer.innerHTML = '';
@@ -363,7 +390,6 @@
     bookingListContainer.innerHTML = tableHTML;
   });
 
-  // 4. DATU DZĒŠANAS LOGIKA
   btnClearAllData.addEventListener('click', function() {
     const confirmation = confirm("Vai tiešām vēlaties dzēst visus pieteikumu datus? Šo darbību nevar atcelt!");
     if (confirmation) {
@@ -374,7 +400,7 @@
     }
   });
 
-  // 5. KODA SKATĪŠANAS UN KOPĒŠANAS AIZSARDZĪBA
+  // Koda skatīšanās aizsardzība
   document.addEventListener('contextmenu', function(e) {
     e.preventDefault();
   });
