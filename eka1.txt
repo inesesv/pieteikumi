@@ -19,9 +19,7 @@ Drobiševska Zanda
 Feldmanis Jānis	
 Freimane Jana	
 Getiņa Solveiga	
-Grīnbarts Mārcis	
-Grīnis Edgars	
-Gruduls Edmons	
+Grīnis Edgars		
 Hova Dana	
 Ivanova Alīna	
 Jansone Jana	
@@ -72,7 +70,6 @@ Strautiņš Kārlis
 Šeidlere Līga	
 Šlangena Diāna	
 Tauriņa Aija	
-Ušakova Natalija	
 Vasermane Inga	
 Vidiņš Daumants	
 Viļumsone Inese	
