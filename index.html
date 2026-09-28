@@ -171,8 +171,9 @@
       <label for="building">Izvēlieties ēku:</label>
       <select id="building" required>
         <option value="">-- Izvēlieties ēku --</option>
-        <option value="1">Ganību ielā</option>
-        <option value="2">Dunikas ielā</option>
+        <option value="1">1. ēka</option>
+        <option value="2">2. ēka</option>
+        <option value="3">3. ēka</option>
       </select>
     </div>
 
@@ -226,27 +227,33 @@
 </div>
 
 <script>
-  // Globali objekti skolotāju datiem
-  let teachersData = { 1: [], 2: [] };
+  // Globālie objekti skolotāju datiem trīs ēkām
+  let teachersData = { 1: [], 2: [], 3: [] };
   let allTeachers = [];
 
-  // Funkcija tekstveida failu nolasīšanai
+  // Funkcija nolasīt eka1.txt, eka2.txt un eka3.txt failus
   async function loadTeachers() {
     try {
-      // Nolasām eka1.txt
-      const response1 = await fetch('eka1.txt');
-      const text1 = await response1.text();
-      teachersData[1] = text1.split('\n').map(name => name.trim()).filter(name => name.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
+      // Izpildām visus 3 pieprasījumus paralēli
+      const [res1, res2, res3] = await Promise.all([
+        fetch('eka1.txt'),
+        fetch('eka2.txt'),
+        fetch('eka3.txt')
+      ]);
 
-      // Nolasām eka2.txt
-      const response2 = await fetch('eka2.txt');
-      const text2 = await response2.text();
-      teachersData[2] = text2.split('\n').map(name => name.trim()).filter(name => name.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
+      const text1 = await res1.text();
+      const text2 = await res2.text();
+      const text3 = await res3.text();
 
-      // Apvienojam visus skolotājus administratora izvēlnei
-      allTeachers = [...teachersData[1], ...teachersData[2]].sort((a, b) => a.localeCompare(b, 'lv'));
+      // Apstrādājam katra faila saturu
+      teachersData[1] = text1.split('\n').map(n => n.trim()).filter(n => n.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
+      teachersData[2] = text2.split('\n').map(n => n.trim()).filter(n => n.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
+      teachersData[3] = text3.split('\n').map(n => n.trim()).filter(n => n.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
 
-      // Aizpildām administratora skolotāju sarakstu
+      // Apvienojam visus skolotājus kopsarakstam
+      allTeachers = [...teachersData[1], ...teachersData[2], ...teachersData[3]].sort((a, b) => a.localeCompare(b, 'lv'));
+
+      // Aizpildām administratora izvēlni
       adminTeacherSelect.innerHTML = '<option value="">-- Izvēlieties skolotāju --</option>';
       allTeachers.forEach(t => {
         const opt = document.createElement('option');
@@ -257,7 +264,7 @@
 
     } catch (error) {
       console.error('Kļūda nolasot skolotāju failus:', error);
-      alert('Kļūda nolasot eka1.txt vai eka2.txt failu. Pārliecinieties, ka tie atrodas tajā pašā mapē!');
+      alert('Kļūda nolasot eka1.txt, eka2.txt vai eka3.txt failus. Pārliecinieties, ka visi 3 faili atrodas tajā pašā mapē!');
     }
   }
 
@@ -298,7 +305,7 @@
     localStorage.setItem('teacherBookings', JSON.stringify(bookings));
   }
 
-  // Izsaucot lapu, ielādējam skolotājus no txt failiem
+  // Ielādējam skolotājus
   loadTeachers();
 
   buildingSelect.addEventListener('change', function() {
