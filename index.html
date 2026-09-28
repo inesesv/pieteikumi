@@ -8,7 +8,6 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      /* Fona attēls */
       background-image: url('fons2.jpg');
       background-size: cover;
       background-position: center;
@@ -18,7 +17,6 @@
       padding: 20px;
     }
 
-    /* Kreisais augšējais stūris: Logo un papildu teksti */
     .top-left-header {
       position: absolute;
       top: 20px;
@@ -29,7 +27,6 @@
       z-index: 100;
     }
 
-    /* Logo kā poga vecāku skatīšanai */
     .logo-btn {
       cursor: pointer;
       border: none;
@@ -46,7 +43,6 @@
       display: block;
     }
 
-    /* Administratora teksts zem logo */
     .admin-text-btn {
       color: #ffffff;
       font-size: 13px;
@@ -62,7 +58,6 @@
       text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
     }
 
-    /* Galvenais formas ietvars */
     .container {
       max-width: 650px;
       margin: 40px auto 0 auto;
@@ -155,14 +150,11 @@
 </head>
 <body>
 
-<!-- Ekrāna augšējais kreisais stūris -->
 <div class="top-left-header">
-  <!-- Logo kā poga (parole: "Skatīt") -->
   <button id="btnLogoAccess" class="logo-btn" type="button" title="Skatīties pieteikušos vecākus">
     <img src="zinatkare_balts.png" alt="Zinātkāre, kas iedvesmo! Liepājas Raiņa vidusskola">
   </button>
 
-  <!-- Teksts zem logo kā poga (parole: "admin") -->
   <div id="btnAdminTextAccess" class="admin-text-btn" title="Administratora režīms">
     ~prāta atvērtība~<br>
     ~zinātkāre~<br>
@@ -174,14 +166,13 @@
 <div class="container">
   <h2>Pieteikšanās vecāku dienai</h2>
   
-  <!-- Pieteikšanās forma -->
   <form id="bookingForm">
     <div class="form-group">
       <label for="building">Izvēlieties ēku:</label>
       <select id="building" required>
         <option value="">-- Izvēlieties ēku --</option>
-        <option value="1">1. ēka</option>
-        <option value="2">2. ēka</option>
+        <option value="1">Ganību ielā</option>
+        <option value="2">Dunikas ielā</option>
       </select>
     </div>
 
@@ -219,7 +210,6 @@
 
   <div id="statusMessage" class="message success"></div>
 
-  <!-- Administrēšanas / Skatīšanās sadaļa -->
   <div id="adminSection" class="admin-section">
     <h3>Skolotāja pieteikumu pārskats</h3>
     <div class="form-group">
@@ -231,32 +221,45 @@
 
     <div id="bookingListContainer"></div>
 
-    <!-- Dzēšanas poga -->
     <button id="btnClearAllData" class="delete-btn" type="button">Dzēst visus datus</button>
   </div>
 </div>
 
 <script>
-  // 1. SKOLOTĀJU DATI
-  const firstNames = ["Jānis", "Pēteris", "Andris", "Māris", "Kārlis", "Juris", "Ilze", "Inese", "Dace", "Anna", "Kristīne", "Laura"];
-  const lastNames = ["Bērziņš", "Kalniņš", "Ozols", "Zariņš", "Liepiņš", "Kļaviņš", "Eglītis", "Pētersons", "Balodis"];
+  // Globali objekti skolotāju datiem
+  let teachersData = { 1: [], 2: [] };
+  let allTeachers = [];
 
-  function generateNames(count, prefix) {
-    const list = [];
-    for (let i = 0; i < count; i++) {
-      const fn = firstNames[i % firstNames.length];
-      const ln = lastNames[Math.floor(i / firstNames.length) % lastNames.length];
-      list.push(`${fn} ${ln} (${prefix})`);
+  // Funkcija tekstveida failu nolasīšanai
+  async function loadTeachers() {
+    try {
+      // Nolasām eka1.txt
+      const response1 = await fetch('eka1.txt');
+      const text1 = await response1.text();
+      teachersData[1] = text1.split('\n').map(name => name.trim()).filter(name => name.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
+
+      // Nolasām eka2.txt
+      const response2 = await fetch('eka2.txt');
+      const text2 = await response2.text();
+      teachersData[2] = text2.split('\n').map(name => name.trim()).filter(name => name.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
+
+      // Apvienojam visus skolotājus administratora izvēlnei
+      allTeachers = [...teachersData[1], ...teachersData[2]].sort((a, b) => a.localeCompare(b, 'lv'));
+
+      // Aizpildām administratora skolotāju sarakstu
+      adminTeacherSelect.innerHTML = '<option value="">-- Izvēlieties skolotāju --</option>';
+      allTeachers.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        adminTeacherSelect.appendChild(opt);
+      });
+
+    } catch (error) {
+      console.error('Kļūda nolasot skolotāju failus:', error);
+      alert('Kļūda nolasot eka1.txt vai eka2.txt failu. Pārliecinieties, ka tie atrodas tajā pašā mapē!');
     }
-    return list.sort((a, b) => a.localeCompare(b, 'lv'));
   }
-
-  const teachersData = {
-    1: generateNames(30, "1. ēka"),
-    2: generateNames(120, "2. ēka")
-  };
-
-  const allTeachers = [...teachersData[1], ...teachersData[2]].sort((a, b) => a.localeCompare(b, 'lv'));
 
   function generateTimeSlots() {
     const slots = [];
@@ -272,7 +275,6 @@
   }
   const allTimeSlots = generateTimeSlots();
 
-  // Elementu atsauces
   const buildingSelect = document.getElementById('building');
   const teacherSelect = document.getElementById('teacher');
   const timeSlotSelect = document.getElementById('timeSlot');
@@ -296,12 +298,8 @@
     localStorage.setItem('teacherBookings', JSON.stringify(bookings));
   }
 
-  allTeachers.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t;
-    opt.textContent = t;
-    adminTeacherSelect.appendChild(opt);
-  });
+  // Izsaucot lapu, ielādējam skolotājus no txt failiem
+  loadTeachers();
 
   buildingSelect.addEventListener('change', function() {
     const buildingId = this.value;
@@ -309,7 +307,7 @@
     timeSlotSelect.innerHTML = '<option value="">-- Vispirms izvēlieties skolotāju --</option>';
     timeSlotSelect.disabled = true;
 
-    if (buildingId) {
+    if (buildingId && teachersData[buildingId]) {
       teachersData[buildingId].forEach(teacher => {
         const option = document.createElement('option');
         option.value = teacher;
@@ -378,7 +376,6 @@
     }, 5000);
   });
 
-  // 2. KLIKŠĶIS UZ LOGO -> Skatīšanās režīms (Parole: "Skatīt")
   btnLogoAccess.addEventListener('click', function() {
     const password = prompt("Lūdzu, ievadiet paroli skatīšanai:");
     if (password === "Skatīt") {
@@ -390,7 +387,6 @@
     }
   });
 
-  // 3. KLIKŠĶIS UZ TEKSTA -> Administratora režīms (Parole: "admin")
   btnAdminTextAccess.addEventListener('click', function() {
     const password = prompt("Lūdzu, ievadiet administratora paroli:");
     if (password === "admin") {
@@ -456,7 +452,6 @@
     }
   });
 
-  // Koda skatīšanās aizsardzība
   document.addEventListener('contextmenu', function(e) {
     e.preventDefault();
   });
