@@ -120,6 +120,10 @@
       background-color: #d4edda;
       color: #155724;
     }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
     .admin-section {
       display: none;
       margin-top: 25px;
@@ -171,9 +175,9 @@
       <label for="building">Izvēlieties ēku:</label>
       <select id="building" required>
         <option value="">-- Izvēlieties ēku --</option>
-        <option value="1">Ganību iela</option>
-        <option value="2">Dunikas ielā </option>
-        <option value="3">Abās ēkas</option>
+        <option value="1">1. ēka</option>
+        <option value="2">2. ēka</option>
+        <option value="3">3. ēka</option>
       </select>
     </div>
 
@@ -209,7 +213,7 @@
     <button type="submit" class="submit-btn">Apstiprināt pieteikumu</button>
   </form>
 
-  <div id="statusMessage" class="message success"></div>
+  <div id="statusMessage" class="message"></div>
 
   <div id="adminSection" class="admin-section">
     <h3>Skolotāja pieteikumu pārskats</h3>
@@ -227,14 +231,12 @@
 </div>
 
 <script>
-  // Globālie objekti skolotāju datiem trīs ēkām
   let teachersData = { 1: [], 2: [], 3: [] };
   let allTeachers = [];
 
-  // Funkcija nolasīt eka1.txt, eka2.txt un eka3.txt failus
+  // 1. Skolotāju saraksta ielāde no eka1.txt, eka2.txt, eka3.txt
   async function loadTeachers() {
     try {
-      // Izpildām visus 3 pieprasījumus paralēli
       const [res1, res2, res3] = await Promise.all([
         fetch('eka1.txt'),
         fetch('eka2.txt'),
@@ -245,15 +247,12 @@
       const text2 = await res2.text();
       const text3 = await res3.text();
 
-      // Apstrādājam katra faila saturu
       teachersData[1] = text1.split('\n').map(n => n.trim()).filter(n => n.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
       teachersData[2] = text2.split('\n').map(n => n.trim()).filter(n => n.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
       teachersData[3] = text3.split('\n').map(n => n.trim()).filter(n => n.length > 0).sort((a, b) => a.localeCompare(b, 'lv'));
 
-      // Apvienojam visus skolotājus kopsarakstam
       allTeachers = [...teachersData[1], ...teachersData[2], ...teachersData[3]].sort((a, b) => a.localeCompare(b, 'lv'));
 
-      // Aizpildām administratora izvēlni
       adminTeacherSelect.innerHTML = '<option value="">-- Izvēlieties skolotāju --</option>';
       allTeachers.forEach(t => {
         const opt = document.createElement('option');
@@ -264,7 +263,18 @@
 
     } catch (error) {
       console.error('Kļūda nolasot skolotāju failus:', error);
-      alert('Kļūda nolasot eka1.txt, eka2.txt vai eka3.txt failus. Pārliecinieties, ka visi 3 faili atrodas tajā pašā mapē!');
+    }
+  }
+
+  // 2. Pieteikumu nolasīšana no pieteikums.txt faila
+  async function getBookingsFromFile() {
+    try {
+      const response = await fetch('pieteikums.txt?t=' + new Date().getTime()); // Pievienojam t, lai nesaglabātu kešatmiņā
+      const text = await response.text();
+      if (!text.trim()) return [];
+      return JSON.parse(text);
+    } catch (e) {
+      return [];
     }
   }
 
@@ -295,17 +305,6 @@
   const bookingListContainer = document.getElementById('bookingListContainer');
   const btnClearAllData = document.getElementById('btnClearAllData');
 
-  function getBookings() {
-    return JSON.parse(localStorage.getItem('teacherBookings')) || [];
-  }
-
-  function saveBooking(booking) {
-    const bookings = getBookings();
-    bookings.push(booking);
-    localStorage.setItem('teacherBookings', JSON.stringify(bookings));
-  }
-
-  // Ielādējam skolotājus
   loadTeachers();
 
   buildingSelect.addEventListener('change', function() {
@@ -327,12 +326,13 @@
     }
   });
 
-  teacherSelect.addEventListener('change', function() {
+  // Laiku atlase ar pārbaudi no pieteikums.txt
+  teacherSelect.addEventListener('change', async function() {
     const selectedTeacher = this.value;
     timeSlotSelect.innerHTML = '<option value="">-- Izvēlieties laiku --</option>';
 
     if (selectedTeacher) {
-      const bookings = getBookings();
+      const bookings = await getBookingsFromFile();
       const takenSlots = bookings
         .filter(b => b.teacher === selectedTeacher)
         .map(b => b.time);
@@ -356,7 +356,8 @@
     }
   });
 
-  bookingForm.addEventListener('submit', function(e) {
+  // Formas nosūtīšana uz saglabat.php
+  bookingForm.addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const newBooking = {
@@ -369,14 +370,33 @@
       createdAt: new Date().toLocaleString()
     };
 
-    saveBooking(newBooking);
+    try {
+      const response = await fetch('saglabat.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBooking)
+      });
 
-    statusMessage.textContent = `Pieteikums veiksmīgi saglabāts! Laiks: ${newBooking.time} pie ${newBooking.teacher}.`;
-    statusMessage.style.display = 'block';
+      const result = await response.json();
 
-    bookingForm.reset();
-    teacherSelect.disabled = true;
-    timeSlotSelect.disabled = true;
+      if (result.success) {
+        statusMessage.className = 'message success';
+        statusMessage.textContent = `Pieteikums veiksmīgi saglabāts! Laiks: ${newBooking.time} pie ${newBooking.teacher}.`;
+        statusMessage.style.display = 'block';
+
+        bookingForm.reset();
+        teacherSelect.disabled = true;
+        timeSlotSelect.disabled = true;
+      } else {
+        statusMessage.className = 'message error';
+        statusMessage.textContent = result.message || 'Kļūda saglabājot pieteikumu!';
+        statusMessage.style.display = 'block';
+      }
+    } catch (err) {
+      statusMessage.className = 'message error';
+      statusMessage.textContent = 'Kļūda savienojumā ar serveri!';
+      statusMessage.style.display = 'block';
+    }
 
     setTimeout(() => {
       statusMessage.style.display = 'none';
@@ -405,13 +425,13 @@
     }
   });
 
-  adminTeacherSelect.addEventListener('change', function() {
+  adminTeacherSelect.addEventListener('change', async function() {
     const selectedTeacher = this.value;
     bookingListContainer.innerHTML = '';
 
     if (!selectedTeacher) return;
 
-    const bookings = getBookings();
+    const bookings = await getBookingsFromFile();
     const teacherBookings = bookings
       .filter(b => b.teacher === selectedTeacher)
       .sort((a, b) => a.time.localeCompare(b.time));
@@ -449,13 +469,18 @@
     bookingListContainer.innerHTML = tableHTML;
   });
 
-  btnClearAllData.addEventListener('click', function() {
-    const confirmation = confirm("Vai tiešām vēlaties dzēst visus pieteikumu datus? Šo darbību nevar atcelt!");
+  btnClearAllData.addEventListener('click', async function() {
+    const confirmation = confirm("Vai tiešām vēlaties dzēst visus pieteikumu datus no pieteikums.txt? Šo darbību nevar atcelt!");
     if (confirmation) {
-      localStorage.removeItem('teacherBookings');
-      bookingListContainer.innerHTML = '';
-      adminTeacherSelect.value = '';
-      alert("Visi dati veiksmīgi izdzēsti!");
+      const response = await fetch('dzest.php');
+      const result = await response.json();
+      if (result.success) {
+        bookingListContainer.innerHTML = '';
+        adminTeacherSelect.value = '';
+        alert("Visi dati no pieteikums.txt veiksmīgi izdzēsti!");
+      } else {
+        alert("Kļūda dzēšot datus!");
+      }
     }
   });
 
