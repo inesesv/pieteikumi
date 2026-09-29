@@ -231,10 +231,14 @@
 </div>
 
 <script>
+  // Aizstājiet šīs vērtības ar savām no JSONBin.io
+  const JSONBIN_BIN_ID = "JUSU_BIN_ID_SEIT";
+  const JSONBIN_API_KEY = "JUSU_MASTER_KEY_SEIT";
+
   let teachersData = { 1: [], 2: [], 3: [] };
   let allTeachers = [];
 
-  // 1. Skolotāju saraksta ielāde no eka1.txt, eka2.txt, eka3.txt
+  // Skolotāju saraksta ielāde
   async function loadTeachers() {
     try {
       const [res1, res2, res3] = await Promise.all([
@@ -266,16 +270,31 @@
     }
   }
 
-  // 2. Pieteikumu nolasīšana no pieteikums.txt faila
-  async function getBookingsFromFile() {
+  // Pieteikumu nolasīšana no JSONBin
+  async function getBookings() {
     try {
-      const response = await fetch('pieteikums.txt?t=' + new Date().getTime()); // Pievienojam t, lai nesaglabātu kešatmiņā
-      const text = await response.text();
-      if (!text.trim()) return [];
-      return JSON.parse(text);
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+        headers: { 'X-Master-Key': JSONBIN_API_KEY }
+      });
+      const data = await res.json();
+      return data.record || [];
     } catch (e) {
+      console.error('Kļūda ielādējot datus:', e);
       return [];
     }
+  }
+
+  // Pieteikumu saglabāšana JSONBin
+  async function saveBookings(updatedBookings) {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_API_KEY
+      },
+      body: JSON.stringify(updatedBookings)
+    });
+    return res.ok;
   }
 
   function generateTimeSlots() {
@@ -326,19 +345,20 @@
     }
   });
 
-  // Laiku atlase ar pārbaudi no pieteikums.txt
   teacherSelect.addEventListener('change', async function() {
     const selectedTeacher = this.value;
-    timeSlotSelect.innerHTML = '<option value="">-- Izvēlieties laiku --</option>';
+    timeSlotSelect.innerHTML = '<option value="">-- Ielādē laikus... --</option>';
+    timeSlotSelect.disabled = true;
 
     if (selectedTeacher) {
-      const bookings = await getBookingsFromFile();
+      const bookings = await getBookings();
       const takenSlots = bookings
         .filter(b => b.teacher === selectedTeacher)
         .map(b => b.time);
 
       const freeSlots = allTimeSlots.filter(time => !takenSlots.includes(time));
 
+      timeSlotSelect.innerHTML = '<option value="">-- Izvēlieties laiku --</option>';
       if (freeSlots.length === 0) {
         timeSlotSelect.innerHTML = '<option value="">-- Visi laiki aizņemti --</option>';
         timeSlotSelect.disabled = true;
@@ -351,51 +371,52 @@
         });
         timeSlotSelect.disabled = false;
       }
-    } else {
-      timeSlotSelect.disabled = true;
     }
   });
 
-  // Formas nosūtīšana uz saglabat.php
   bookingForm.addEventListener('submit', async function(e) {
     e.preventDefault();
 
+    const selectedTeacher = teacherSelect.value;
+    const selectedTime = timeSlotSelect.value;
+
+    statusMessage.className = 'message';
+    statusMessage.textContent = 'Pārbauda pieejamību...';
+    statusMessage.style.display = 'block';
+
+    const currentBookings = await getBookings();
+
+    // Pārbaudām, vai laiks nav jau aizņemts
+    const isTaken = currentBookings.some(b => b.teacher === selectedTeacher && b.time === selectedTime);
+
+    if (isTaken) {
+      statusMessage.className = 'message error';
+      statusMessage.textContent = 'Šis laiks pie izvēlētā skolotāja tikko tika aizņemts!';
+      return;
+    }
+
     const newBooking = {
       building: buildingSelect.value,
-      teacher: teacherSelect.value,
-      time: timeSlotSelect.value,
+      teacher: selectedTeacher,
+      time: selectedTime,
       studentClass: document.getElementById('studentClass').value,
       studentName: document.getElementById('studentName').value,
       reason: document.getElementById('reason').value,
       createdAt: new Date().toLocaleString()
     };
 
-    try {
-      const response = await fetch('saglabat.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newBooking)
-      });
+    currentBookings.push(newBooking);
+    const success = await saveBookings(currentBookings);
 
-      const result = await response.json();
-
-      if (result.success) {
-        statusMessage.className = 'message success';
-        statusMessage.textContent = `Pieteikums veiksmīgi saglabāts! Laiks: ${newBooking.time} pie ${newBooking.teacher}.`;
-        statusMessage.style.display = 'block';
-
-        bookingForm.reset();
-        teacherSelect.disabled = true;
-        timeSlotSelect.disabled = true;
-      } else {
-        statusMessage.className = 'message error';
-        statusMessage.textContent = result.message || 'Kļūda saglabājot pieteikumu!';
-        statusMessage.style.display = 'block';
-      }
-    } catch (err) {
+    if (success) {
+      statusMessage.className = 'message success';
+      statusMessage.textContent = `Pieteikums veiksmīgi saglabāts! Laiks: ${newBooking.time} pie ${newBooking.teacher}.`;
+      bookingForm.reset();
+      teacherSelect.disabled = true;
+      timeSlotSelect.disabled = true;
+    } else {
       statusMessage.className = 'message error';
-      statusMessage.textContent = 'Kļūda savienojumā ar serveri!';
-      statusMessage.style.display = 'block';
+      statusMessage.textContent = 'Kļūda saglabājot pieteikumu serverī!';
     }
 
     setTimeout(() => {
@@ -427,11 +448,14 @@
 
   adminTeacherSelect.addEventListener('change', async function() {
     const selectedTeacher = this.value;
-    bookingListContainer.innerHTML = '';
+    bookingListContainer.innerHTML = 'Ielādē datus...';
 
-    if (!selectedTeacher) return;
+    if (!selectedTeacher) {
+      bookingListContainer.innerHTML = '';
+      return;
+    }
 
-    const bookings = await getBookingsFromFile();
+    const bookings = await getBookings();
     const teacherBookings = bookings
       .filter(b => b.teacher === selectedTeacher)
       .sort((a, b) => a.time.localeCompare(b.time));
@@ -470,14 +494,13 @@
   });
 
   btnClearAllData.addEventListener('click', async function() {
-    const confirmation = confirm("Vai tiešām vēlaties dzēst visus pieteikumu datus no pieteikums.txt? Šo darbību nevar atcelt!");
+    const confirmation = confirm("Vai tiešām vēlaties dzēst visus pieteikumu datus? Šo darbību nevar atcelt!");
     if (confirmation) {
-      const response = await fetch('dzest.php');
-      const result = await response.json();
-      if (result.success) {
+      const success = await saveBookings([]);
+      if (success) {
         bookingListContainer.innerHTML = '';
         adminTeacherSelect.value = '';
-        alert("Visi dati no pieteikums.txt veiksmīgi izdzēsti!");
+        alert("Visi dati veiksmīgi izdzēsti!");
       } else {
         alert("Kļūda dzēšot datus!");
       }
